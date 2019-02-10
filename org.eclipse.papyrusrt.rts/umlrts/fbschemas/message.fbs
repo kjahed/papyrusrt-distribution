@@ -1,0 +1,16 @@
+include "signal.fbs";
+
+namespace FBSchema;
+
+enum Type : byte { DEPLOYMENT, READY_SIGNAL, GO_SIGNAL, PROTOCOL_SIGNAL }
+
+table Message {
+	sender: string;
+	receiver: string;
+	type: Type = PROTOCOL_SIGNAL;
+
+	signal: Signal;
+	deployment: [ubyte];
+}
+
+root_type Message;
