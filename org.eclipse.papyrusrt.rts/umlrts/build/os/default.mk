@@ -47,6 +47,7 @@ CC_OBJS=\
     $(BUILDROOT)/$(CONFIG)/umlrt/umlrtsignal$(OBJ_EXT) \
     $(BUILDROOT)/$(CONFIG)/umlrt/umlrtsignalelement$(OBJ_EXT) \
     $(BUILDROOT)/$(CONFIG)/umlrt/umlrtsignalelementpool$(OBJ_EXT) \
+    $(BUILDROOT)/$(CONFIG)/umlrt/umlrtsignalregistry$(OBJ_EXT) \
     $(BUILDROOT)/$(CONFIG)/umlrt/umlrttimerid$(OBJ_EXT) \
     $(BUILDROOT)/$(CONFIG)/umlrt/umlrttimerpool$(OBJ_EXT) \
     $(BUILDROOT)/$(CONFIG)/umlrt/umlrttimerprotocol$(OBJ_EXT) \
