@@ -6,7 +6,7 @@
 
 #include "flatbuffers/flatbuffers.h"
 
-#include "fbschemas/signal_generated.h"
+#include "signal_generated.h"
 
 namespace FBSchema {
 
@@ -21,8 +21,8 @@ enum Type {
   Type_MAX = Type_PROTOCOL_SIGNAL
 };
 
-inline Type (&EnumValuesType())[4] {
-  static Type values[] = {
+inline const Type (&EnumValuesType())[4] {
+  static const Type values[] = {
     Type_DEPLOYMENT,
     Type_READY_SIGNAL,
     Type_GO_SIGNAL,
@@ -31,8 +31,8 @@ inline Type (&EnumValuesType())[4] {
   return values;
 }
 
-inline const char **EnumNamesType() {
-  static const char *names[] = {
+inline const char * const *EnumNamesType() {
+  static const char * const names[] = {
     "DEPLOYMENT",
     "READY_SIGNAL",
     "GO_SIGNAL",
@@ -43,12 +43,13 @@ inline const char **EnumNamesType() {
 }
 
 inline const char *EnumNameType(Type e) {
-  const size_t index = static_cast<int>(e);
+  if (e < Type_DEPLOYMENT || e > Type_PROTOCOL_SIGNAL) return "";
+  const size_t index = static_cast<size_t>(e);
   return EnumNamesType()[index];
 }
 
 struct Message FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  enum {
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SENDER = 4,
     VT_RECEIVER = 6,
     VT_TYPE = 8,
@@ -73,14 +74,14 @@ struct Message FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_SENDER) &&
-           verifier.Verify(sender()) &&
+           verifier.VerifyString(sender()) &&
            VerifyOffset(verifier, VT_RECEIVER) &&
-           verifier.Verify(receiver()) &&
+           verifier.VerifyString(receiver()) &&
            VerifyField<int8_t>(verifier, VT_TYPE) &&
            VerifyOffset(verifier, VT_SIGNAL) &&
            verifier.VerifyTable(signal()) &&
            VerifyOffset(verifier, VT_DEPLOYMENT) &&
-           verifier.Verify(deployment()) &&
+           verifier.VerifyVector(deployment()) &&
            verifier.EndTable();
   }
 };
@@ -138,17 +139,24 @@ inline flatbuffers::Offset<Message> CreateMessageDirect(
     Type type = Type_PROTOCOL_SIGNAL,
     flatbuffers::Offset<Signal> signal = 0,
     const std::vector<uint8_t> *deployment = nullptr) {
+  auto sender__ = sender ? _fbb.CreateString(sender) : 0;
+  auto receiver__ = receiver ? _fbb.CreateString(receiver) : 0;
+  auto deployment__ = deployment ? _fbb.CreateVector<uint8_t>(*deployment) : 0;
   return FBSchema::CreateMessage(
       _fbb,
-      sender ? _fbb.CreateString(sender) : 0,
-      receiver ? _fbb.CreateString(receiver) : 0,
+      sender__,
+      receiver__,
       type,
       signal,
-      deployment ? _fbb.CreateVector<uint8_t>(*deployment) : 0);
+      deployment__);
 }
 
 inline const FBSchema::Message *GetMessage(const void *buf) {
   return flatbuffers::GetRoot<FBSchema::Message>(buf);
+}
+
+inline const FBSchema::Message *GetSizePrefixedMessage(const void *buf) {
+  return flatbuffers::GetSizePrefixedRoot<FBSchema::Message>(buf);
 }
 
 inline bool VerifyMessageBuffer(
@@ -156,10 +164,21 @@ inline bool VerifyMessageBuffer(
   return verifier.VerifyBuffer<FBSchema::Message>(nullptr);
 }
 
+inline bool VerifySizePrefixedMessageBuffer(
+    flatbuffers::Verifier &verifier) {
+  return verifier.VerifySizePrefixedBuffer<FBSchema::Message>(nullptr);
+}
+
 inline void FinishMessageBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
     flatbuffers::Offset<FBSchema::Message> root) {
   fbb.Finish(root);
+}
+
+inline void FinishSizePrefixedMessageBuffer(
+    flatbuffers::FlatBufferBuilder &fbb,
+    flatbuffers::Offset<FBSchema::Message> root) {
+  fbb.FinishSizePrefixed(root);
 }
 
 }  // namespace FBSchema

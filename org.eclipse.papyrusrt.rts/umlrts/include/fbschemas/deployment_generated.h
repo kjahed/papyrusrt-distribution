@@ -17,7 +17,7 @@ struct Controller;
 struct Host;
 
 struct Deployment FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  enum {
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_HOSTS = 4,
     VT_CONTROLLERS = 6,
     VT_CAPSULES = 8
@@ -34,13 +34,13 @@ struct Deployment FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_HOSTS) &&
-           verifier.Verify(hosts()) &&
+           verifier.VerifyVector(hosts()) &&
            verifier.VerifyVectorOfTables(hosts()) &&
            VerifyOffsetRequired(verifier, VT_CONTROLLERS) &&
-           verifier.Verify(controllers()) &&
+           verifier.VerifyVector(controllers()) &&
            verifier.VerifyVectorOfTables(controllers()) &&
            VerifyOffsetRequired(verifier, VT_CAPSULES) &&
-           verifier.Verify(capsules()) &&
+           verifier.VerifyVector(capsules()) &&
            verifier.VerifyVectorOfTables(capsules()) &&
            verifier.EndTable();
   }
@@ -90,15 +90,18 @@ inline flatbuffers::Offset<Deployment> CreateDeploymentDirect(
     const std::vector<flatbuffers::Offset<Host>> *hosts = nullptr,
     const std::vector<flatbuffers::Offset<Controller>> *controllers = nullptr,
     const std::vector<flatbuffers::Offset<Capsule>> *capsules = nullptr) {
+  auto hosts__ = hosts ? _fbb.CreateVector<flatbuffers::Offset<Host>>(*hosts) : 0;
+  auto controllers__ = controllers ? _fbb.CreateVector<flatbuffers::Offset<Controller>>(*controllers) : 0;
+  auto capsules__ = capsules ? _fbb.CreateVector<flatbuffers::Offset<Capsule>>(*capsules) : 0;
   return FBSchema::CreateDeployment(
       _fbb,
-      hosts ? _fbb.CreateVector<flatbuffers::Offset<Host>>(*hosts) : 0,
-      controllers ? _fbb.CreateVector<flatbuffers::Offset<Controller>>(*controllers) : 0,
-      capsules ? _fbb.CreateVector<flatbuffers::Offset<Capsule>>(*capsules) : 0);
+      hosts__,
+      controllers__,
+      capsules__);
 }
 
 struct Capsule FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  enum {
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_NAME = 4,
     VT_CONTROLLER = 6
   };
@@ -111,9 +114,9 @@ struct Capsule FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_NAME) &&
-           verifier.Verify(name()) &&
+           verifier.VerifyString(name()) &&
            VerifyOffsetRequired(verifier, VT_CONTROLLER) &&
-           verifier.Verify(controller()) &&
+           verifier.VerifyString(controller()) &&
            verifier.EndTable();
   }
 };
@@ -155,14 +158,16 @@ inline flatbuffers::Offset<Capsule> CreateCapsuleDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     const char *name = nullptr,
     const char *controller = nullptr) {
+  auto name__ = name ? _fbb.CreateString(name) : 0;
+  auto controller__ = controller ? _fbb.CreateString(controller) : 0;
   return FBSchema::CreateCapsule(
       _fbb,
-      name ? _fbb.CreateString(name) : 0,
-      controller ? _fbb.CreateString(controller) : 0);
+      name__,
+      controller__);
 }
 
 struct Controller FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  enum {
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_NAME = 4,
     VT_HOST = 6
   };
@@ -175,9 +180,9 @@ struct Controller FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_NAME) &&
-           verifier.Verify(name()) &&
+           verifier.VerifyString(name()) &&
            VerifyOffsetRequired(verifier, VT_HOST) &&
-           verifier.Verify(host()) &&
+           verifier.VerifyString(host()) &&
            verifier.EndTable();
   }
 };
@@ -219,14 +224,16 @@ inline flatbuffers::Offset<Controller> CreateControllerDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     const char *name = nullptr,
     const char *host = nullptr) {
+  auto name__ = name ? _fbb.CreateString(name) : 0;
+  auto host__ = host ? _fbb.CreateString(host) : 0;
   return FBSchema::CreateController(
       _fbb,
-      name ? _fbb.CreateString(name) : 0,
-      host ? _fbb.CreateString(host) : 0);
+      name__,
+      host__);
 }
 
 struct Host FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  enum {
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_NAME = 4,
     VT_ADDRESS = 6
   };
@@ -239,9 +246,9 @@ struct Host FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffsetRequired(verifier, VT_NAME) &&
-           verifier.Verify(name()) &&
+           verifier.VerifyString(name()) &&
            VerifyOffsetRequired(verifier, VT_ADDRESS) &&
-           verifier.Verify(address()) &&
+           verifier.VerifyString(address()) &&
            verifier.EndTable();
   }
 };
@@ -283,14 +290,20 @@ inline flatbuffers::Offset<Host> CreateHostDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     const char *name = nullptr,
     const char *address = nullptr) {
+  auto name__ = name ? _fbb.CreateString(name) : 0;
+  auto address__ = address ? _fbb.CreateString(address) : 0;
   return FBSchema::CreateHost(
       _fbb,
-      name ? _fbb.CreateString(name) : 0,
-      address ? _fbb.CreateString(address) : 0);
+      name__,
+      address__);
 }
 
 inline const FBSchema::Deployment *GetDeployment(const void *buf) {
   return flatbuffers::GetRoot<FBSchema::Deployment>(buf);
+}
+
+inline const FBSchema::Deployment *GetSizePrefixedDeployment(const void *buf) {
+  return flatbuffers::GetSizePrefixedRoot<FBSchema::Deployment>(buf);
 }
 
 inline bool VerifyDeploymentBuffer(
@@ -298,10 +311,21 @@ inline bool VerifyDeploymentBuffer(
   return verifier.VerifyBuffer<FBSchema::Deployment>(nullptr);
 }
 
+inline bool VerifySizePrefixedDeploymentBuffer(
+    flatbuffers::Verifier &verifier) {
+  return verifier.VerifySizePrefixedBuffer<FBSchema::Deployment>(nullptr);
+}
+
 inline void FinishDeploymentBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
     flatbuffers::Offset<FBSchema::Deployment> root) {
   fbb.Finish(root);
+}
+
+inline void FinishSizePrefixedDeploymentBuffer(
+    flatbuffers::FlatBufferBuilder &fbb,
+    flatbuffers::Offset<FBSchema::Deployment> root) {
+  fbb.FinishSizePrefixed(root);
 }
 
 }  // namespace FBSchema

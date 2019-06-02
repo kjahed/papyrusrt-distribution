@@ -11,7 +11,7 @@ namespace FBSchema {
 struct Signal;
 
 struct Signal FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  enum {
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_PROTOCOL = 4,
     VT_NAME = 6,
     VT_SOURCESLOT = 8,
@@ -56,20 +56,20 @@ struct Signal FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_PROTOCOL) &&
-           verifier.Verify(protocol()) &&
+           verifier.VerifyString(protocol()) &&
            VerifyOffset(verifier, VT_NAME) &&
-           verifier.Verify(name()) &&
+           verifier.VerifyString(name()) &&
            VerifyOffset(verifier, VT_SOURCESLOT) &&
-           verifier.Verify(sourceSlot()) &&
+           verifier.VerifyString(sourceSlot()) &&
            VerifyOffset(verifier, VT_DESTINATIONSLOT) &&
-           verifier.Verify(destinationSlot()) &&
+           verifier.VerifyString(destinationSlot()) &&
            VerifyField<int32_t>(verifier, VT_SOURCEPORT) &&
            VerifyField<int32_t>(verifier, VT_DESTINATIONPORT) &&
            VerifyField<uint8_t>(verifier, VT_ISDESTINATIONINTERNAL) &&
            VerifyField<uint8_t>(verifier, VT_ISSOURCEINTERNAL) &&
            VerifyField<int32_t>(verifier, VT_PAYLOADSIZE) &&
            VerifyOffset(verifier, VT_PAYLOAD) &&
-           verifier.Verify(payload()) &&
+           verifier.VerifyVector(payload()) &&
            verifier.EndTable();
   }
 };
@@ -157,22 +157,31 @@ inline flatbuffers::Offset<Signal> CreateSignalDirect(
     bool isSourceInternal = false,
     int32_t payloadSize = 0,
     const std::vector<uint8_t> *payload = nullptr) {
+  auto protocol__ = protocol ? _fbb.CreateString(protocol) : 0;
+  auto name__ = name ? _fbb.CreateString(name) : 0;
+  auto sourceSlot__ = sourceSlot ? _fbb.CreateString(sourceSlot) : 0;
+  auto destinationSlot__ = destinationSlot ? _fbb.CreateString(destinationSlot) : 0;
+  auto payload__ = payload ? _fbb.CreateVector<uint8_t>(*payload) : 0;
   return FBSchema::CreateSignal(
       _fbb,
-      protocol ? _fbb.CreateString(protocol) : 0,
-      name ? _fbb.CreateString(name) : 0,
-      sourceSlot ? _fbb.CreateString(sourceSlot) : 0,
-      destinationSlot ? _fbb.CreateString(destinationSlot) : 0,
+      protocol__,
+      name__,
+      sourceSlot__,
+      destinationSlot__,
       sourcePort,
       destinationPort,
       isDestinationInternal,
       isSourceInternal,
       payloadSize,
-      payload ? _fbb.CreateVector<uint8_t>(*payload) : 0);
+      payload__);
 }
 
 inline const FBSchema::Signal *GetSignal(const void *buf) {
   return flatbuffers::GetRoot<FBSchema::Signal>(buf);
+}
+
+inline const FBSchema::Signal *GetSizePrefixedSignal(const void *buf) {
+  return flatbuffers::GetSizePrefixedRoot<FBSchema::Signal>(buf);
 }
 
 inline bool VerifySignalBuffer(
@@ -180,10 +189,21 @@ inline bool VerifySignalBuffer(
   return verifier.VerifyBuffer<FBSchema::Signal>(nullptr);
 }
 
+inline bool VerifySizePrefixedSignalBuffer(
+    flatbuffers::Verifier &verifier) {
+  return verifier.VerifySizePrefixedBuffer<FBSchema::Signal>(nullptr);
+}
+
 inline void FinishSignalBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
     flatbuffers::Offset<FBSchema::Signal> root) {
   fbb.Finish(root);
+}
+
+inline void FinishSizePrefixedSignalBuffer(
+    flatbuffers::FlatBufferBuilder &fbb,
+    flatbuffers::Offset<FBSchema::Signal> root) {
+  fbb.FinishSizePrefixed(root);
 }
 
 }  // namespace FBSchema
