@@ -41,7 +41,9 @@ void UMLRTCommunicator::setLocalHost( UMLRTHost * host )
 
 void UMLRTCommunicator::sendDeployment ( UMLRTHost * host )
 {
-	static std::vector<uint8_t> deploymentData = UMLRTDeploymentMap::encode( );
+	const char * deploymentJson = UMLRTDeploymentMap::encode( );
+	std::string deploymentStr(deploymentJson);
+	std::vector<uint8_t> deploymentData(deploymentStr.begin(), deploymentStr.end());
 
 	flatbuffers::FlatBufferBuilder builder(1024);
 
@@ -92,7 +94,7 @@ const char * UMLRTCommunicator::waitForDeployment ( )
 	for(int i=0; i<deploymentBuffSize; i++)
 		deploymentBuff[i] = deployment->Get(i);
 
-	UMLRTDeploymentMap::decode( deploymentBuff, deploymentBuffSize );
+	UMLRTDeploymentMap::decode( (const char*) deploymentBuff );
 	return sender->c_str();
 
 	//printf("Got deployment");

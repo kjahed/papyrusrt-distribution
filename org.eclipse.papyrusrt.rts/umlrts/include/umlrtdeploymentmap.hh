@@ -11,8 +11,6 @@
 #ifndef UMLRTDEPLOYMENTMAP_HH
 #define UMLRTDEPLOYMENTMAP_HH
 
-#define UMLRTDEPLOYMENTMAP_SCHEMA_FILE "fbschemas/deployment.fbs"
-
 class UMLRTCapsule;
 class UMLRTController;
 struct UMLRTSlot;
@@ -101,9 +99,9 @@ public:
 
     static bool fromFile( const char* fileName );
 
-    static void decode( uint8_t* flatbuffer, size_t flatbufferSize  );
+    static void decode( const char * json  );
 
-    static std::vector<uint8_t> & encode( );
+    static const char * encode( );
 
     static bool isLoaded( );
 
@@ -149,7 +147,7 @@ private:
     static int numDefaultSlotList;
     static UMLRTSlot * defaultSlotList;
 
-    static std::vector<uint8_t> payload;
+    static const char * payload;
 };
 
 #endif // UMLRTDEPLOYMENTMAP_HH

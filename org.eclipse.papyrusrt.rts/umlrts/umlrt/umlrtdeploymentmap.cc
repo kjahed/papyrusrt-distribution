@@ -17,11 +17,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <vector>
+#include <cstdio>
+#include <fstream>
 #include "osutil.hh"
-#include "flatbuffers/flatbuffers.h"
-#include "flatbuffers/idl.h"
-#include "flatbuffers/util.h"
-#include "fbschemas/deployment_generated.h"
+
+#include "rapidjson/document.h"
 
 UMLRTHashMap * UMLRTDeploymentMap::capsuleToControllerMap = NULL;
 UMLRTHashMap * UMLRTDeploymentMap::controllerToHostMap = NULL;
@@ -33,7 +33,7 @@ UMLRTHashMap * UMLRTDeploymentMap::slotNameMap = NULL;
 UMLRTSlot * UMLRTDeploymentMap::defaultSlotList = NULL;
 int UMLRTDeploymentMap::numDefaultSlotList = 0;
 
-std::vector<uint8_t> UMLRTDeploymentMap::payload;
+const char * UMLRTDeploymentMap::payload = NULL;
 
 // The 3 maps above are created dynamically and persist forever.
 // capsuleToControllerMap
@@ -379,83 +379,73 @@ std::vector<uint8_t> UMLRTDeploymentMap::payload;
 
 /*static*/ bool UMLRTDeploymentMap::fromFile( const char* fileName )
 {
-    std::string schemafile;
-    std::string jsonfile;
+	std::string line, body;
+	std::ifstream file(fileName);
+	if(file) {
+		while(std::getline(file, line)) {
+			body += line + "\n";
+		}
 
-    if( flatbuffers::LoadFile(UMLRTDEPLOYMENTMAP_SCHEMA_FILE, false, &schemafile)
-        && flatbuffers::LoadFile(fileName, false, &jsonfile) )
-    {
-        flatbuffers::Parser parser;
-        if( parser.Parse(schemafile.c_str(), NULL) 
-                && parser.Parse(jsonfile.c_str(), NULL) )
-        {
-            decode( parser.builder_.GetBufferPointer(), parser.builder_.GetSize());
-            return true;
-        }
-    }
+		const char* data = body.c_str();
+		decode(data);
+		return true;
+	}
 
-    return false;
+   return false;
 }
 
-/*static*/ void UMLRTDeploymentMap::decode( uint8_t* flatbuffer, size_t flatbufferSize )
-{   
-    auto deploymentObj = FBSchema::GetDeployment( flatbuffer );
-    auto hosts = deploymentObj->hosts( );
-    auto controllers = deploymentObj->controllers( );
-    auto capsules = deploymentObj->capsules( );
+/*static*/ void UMLRTDeploymentMap::decode( const char* json )
+{
+	rapidjson::StringStream stream(json);
+	rapidjson::Document document;
+	document.ParseStream(stream);
 
-    auto numHosts = hosts->Length( );
-    auto numControllers = controllers->Length( );
-    auto numCapsules = capsules->Length( );
-    
-    for( int i=0; i<numHosts; i++ )
-    {
-        auto hostObj = hosts->Get( i );
-        auto hostName = hostObj->name( )->c_str( );
-        auto hostAddress = hostObj->address( )->c_str( );
+	const rapidjson::Value& hosts = document["hosts"];
+	for (rapidjson::Value::ConstValueIterator itr = hosts.Begin(); itr != hosts.End(); ++itr) {
+		const char * hostName = (*itr)["name"].GetString();
+		const char * hostAddress = (*itr)["address"].GetString();
 
-        UMLRTHost* host = UMLRTDeploymentMap::getHostFromName( hostName );
-        if( host != NULL )
-        {
-            if( strcmp( host->address, hostAddress ) != 0 )
-                FATAL( "Duplicate hostname: %s\n", hostName );
-        }
-        else
-        {
-            new UMLRTHost( (char*)hostName, (char*)hostAddress );
-        }
-            
-    }
+		UMLRTHost* host = UMLRTDeploymentMap::getHostFromName( hostName );
+		if( host != NULL )
+		{
+			if( strcmp( host->address, hostAddress ) != 0 )
+				FATAL( "Duplicate hostname: %s\n", hostName );
+		}
+		else
+		{
+			new UMLRTHost( (char*)hostName, (char*)hostAddress );
+		}
+	}
 
-    for( int i=0; i<numControllers; i++ )
-    {
-        auto contObj = controllers->Get(i);
-        auto controllerName = contObj->name()->c_str();
-        auto hostName = contObj->host()->c_str();
+	const rapidjson::Value& controllers = document["controllers"];
+	for (rapidjson::Value::ConstValueIterator itr = controllers.Begin(); itr != controllers.End(); ++itr) {
+		const char * controllerName = (*itr)["name"].GetString();
+		const char * hostName = (*itr)["host"].GetString();
 
         UMLRTHost* host = UMLRTDeploymentMap::getHostFromName( hostName );
         if(host == NULL)
             FATAL("No such host: %s\n", hostName);
 
         UMLRTDeploymentMap::addControllerToHost( (char*)controllerName, (char*)hostName );
-    }
+	}
 
+	const rapidjson::Value& capsules = document["capsules"];
+	for (rapidjson::Value::ConstValueIterator itr = capsules.Begin(); itr != capsules.End(); ++itr) {
+		const char * capsuleName = (*itr)["name"].GetString();
+		const char * controllerName = (*itr)["controller"].GetString();
 
-    for( int i=0; i<numCapsules; i++ )
-    {
-        auto capObj = capsules->Get(i);
-        auto capsuleName = capObj->name()->c_str();
-        auto controllerName = capObj->controller()->c_str();
-        UMLRTDeploymentMap::addCapsuleToController( (char*)capsuleName, (char*)controllerName );
-    }
+		//TODO: check that controller exists
+		UMLRTDeploymentMap::addCapsuleToController( (char*)capsuleName, (char*)controllerName );
+	}
 
-    payload.resize( flatbufferSize );
-    std::copy ( flatbuffer, flatbuffer+flatbufferSize, payload.begin() );
+	if(payload != NULL)
+		free((void*)payload);
+	payload = strdup(json);
 }
 
-/*static*/ std::vector<uint8_t> & UMLRTDeploymentMap::encode( )
+/*static*/ const char * UMLRTDeploymentMap::encode( )
 {
-    if( payload.empty() )
+    if( payload == NULL )
         FATAL("Deployment map not encoded yet\n");
 
     return payload;
@@ -463,7 +453,7 @@ std::vector<uint8_t> UMLRTDeploymentMap::payload;
 
 /*static*/ bool UMLRTDeploymentMap::isLoaded( )
 {
-    return !payload.empty();
+    return payload != NULL;
 }
 
 // Debug output the the capsule, controller and capsule-to-controller maps.
