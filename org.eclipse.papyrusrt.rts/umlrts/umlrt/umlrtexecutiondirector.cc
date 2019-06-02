@@ -17,6 +17,7 @@
 #include "basefatal.hh"
 #include <unistd.h>
 #include <string.h>
+#include <string>
 
 /*static*/ UMLRTExecutionDirector* UMLRTExecutionDirector::instance = NULL;
 

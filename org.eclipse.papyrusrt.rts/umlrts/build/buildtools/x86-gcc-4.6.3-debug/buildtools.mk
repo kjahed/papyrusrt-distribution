@@ -21,7 +21,7 @@ CC_INC 				= -I
 CC_OUT 	 			= -o
 CC_DEBUG 			= -g -O0
 CC_DEFINES 			= 
-CC_FLAGS			= -c -Wall
+CC_FLAGS				= -std=c++0x -c -Wall
 CC_PPFLAGS			= 
 CC_INCLUDES			= 
 
