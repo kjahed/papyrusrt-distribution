@@ -11,7 +11,7 @@
  *******************************************************************************/
 package org.eclipse.papyrusrt.codegen.cpp.build;
 
-
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -19,8 +19,13 @@ import java.util.SortedMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.eclipse.cdt.codan.core.CodanRuntime;
+import org.eclipse.cdt.codan.core.model.IProblem;
+import org.eclipse.cdt.codan.core.model.IProblemProfile;
+import org.eclipse.cdt.codan.internal.core.model.CodanProblem;
 import org.eclipse.cdt.core.CCProjectNature;
 import org.eclipse.cdt.core.CCorePlugin;
+import org.eclipse.cdt.core.dom.IPDOMManager;
 import org.eclipse.cdt.core.envvar.IEnvironmentVariable;
 import org.eclipse.cdt.core.model.CoreModel;
 import org.eclipse.cdt.core.model.ICModel;
@@ -33,6 +38,7 @@ import org.eclipse.cdt.core.settings.model.ICProjectDescriptionManager;
 import org.eclipse.cdt.core.settings.model.ICSettingEntry;
 import org.eclipse.cdt.core.settings.model.extension.CConfigurationData;
 import org.eclipse.cdt.core.settings.model.util.CDataUtil;
+import org.eclipse.cdt.debug.core.ICDTLaunchConfigurationConstants;
 import org.eclipse.cdt.make.core.IMakeTarget;
 import org.eclipse.cdt.make.core.IMakeTargetManager;
 import org.eclipse.cdt.make.core.MakeCorePlugin;
@@ -40,10 +46,13 @@ import org.eclipse.cdt.make.core.MakeProjectNature;
 import org.eclipse.cdt.managedbuilder.buildproperties.IBuildPropertyManager;
 import org.eclipse.cdt.managedbuilder.buildproperties.IBuildPropertyType;
 import org.eclipse.cdt.managedbuilder.buildproperties.IBuildPropertyValue;
+import org.eclipse.cdt.managedbuilder.core.BuildException;
 import org.eclipse.cdt.managedbuilder.core.BuildListComparator;
 import org.eclipse.cdt.managedbuilder.core.IBuilder;
 import org.eclipse.cdt.managedbuilder.core.IConfiguration;
+import org.eclipse.cdt.managedbuilder.core.IOption;
 import org.eclipse.cdt.managedbuilder.core.IProjectType;
+import org.eclipse.cdt.managedbuilder.core.ITool;
 import org.eclipse.cdt.managedbuilder.core.IToolChain;
 import org.eclipse.cdt.managedbuilder.core.ManagedBuildManager;
 import org.eclipse.cdt.managedbuilder.internal.core.Configuration;
@@ -52,12 +61,18 @@ import org.eclipse.cdt.managedbuilder.internal.core.ManagedProject;
 import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IProjectDescription;
+import org.eclipse.core.resources.IResource;
 import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
+import org.eclipse.debug.core.DebugPlugin;
+import org.eclipse.debug.core.ILaunchConfiguration;
+import org.eclipse.debug.core.ILaunchConfigurationType;
+import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
+import org.eclipse.debug.core.ILaunchManager;
 import org.eclipse.papyrusrt.codegen.CodeGenPlugin;
 import org.eclipse.papyrusrt.codegen.cpp.rts.UMLRTSUtil;
 import org.eclipse.uml2.uml.util.UMLUtil;
@@ -130,11 +145,31 @@ public final class ProjectGenerator {
 
 				String rtsroot = getUMLRTSRootEnv();
 				addIncludePath(project.getName(), rtsroot, "include");
+				addLibraryPath(project.getName(), rtsroot, getRTSDirectory());
+				addLibraries(project.getName(), "rts", "pthread", "nanomsg", "flatbuffers");
 
 				addTarget(project, "all");
 				addTarget(project, "clean");
+				addLaunchConfiguration(project.getName());
 
-			} catch (CoreException e) {
+				// disable indexing
+				ICModel cModel = CoreModel.create(ResourcesPlugin.getWorkspace().getRoot());
+				ICProject cProject = cModel.getCProject(project.getName());
+				CCorePlugin.getIndexManager().setIndexerId(cProject, IPDOMManager.ID_NO_INDEXER);
+
+				// disable code analysis
+				IProblemProfile profile = CodanRuntime.getInstance().getCheckersRegistry()
+						.getResourceProfileWorkingCopy(project);
+
+				IProblem[] problems = profile.getProblems();
+				for (int i = 0; i < problems.length; i++) {
+					IProblem p = problems[i];
+					((CodanProblem) p).setEnabled(false);
+				}
+
+				CodanRuntime.getInstance().getCheckersRegistry().updateProfile(project, profile);
+
+			} catch (CoreException | BuildException e) {
 				CodeGenPlugin.error(e);
 				project = null;
 			}
@@ -324,6 +359,20 @@ public final class ProjectGenerator {
 	}
 
 	/**
+	 * Get RTS library directory.
+	 * 
+	 * @return RTS library path
+	 */
+	public static String getRTSDirectory() {
+		String os = System.getProperty("os.name").toLowerCase();
+		if (os.startsWith("mac"))
+			return "lib" + File.separator + "linux.darwin";
+		else if (os.startsWith("win"))
+			return "lib" + File.separator + "linux.cygwin";
+		return "lib" + File.separator + "linux.x86-gcc-4.6.3";
+	}
+
+	/**
 	 * Add include path to RTS include.
 	 * 
 	 * @param targetProjectName
@@ -360,8 +409,127 @@ public final class ProjectGenerator {
 					}
 				}
 			}
+
 			CoreModel.getDefault().setProjectDescription(project, projectDescription);
 		}
+	}
+
+	/**
+	 * Add library path to RTS library.
+	 * 
+	 * @param targetProjectName
+	 *            project
+	 * @param basePath
+	 *            base path
+	 * @param path
+	 *            actual path
+	 * @throws CoreException
+	 * @throws BuildException
+	 */
+	public static void addLibraryPath(String targetProjectName, String basePath, String path) throws CoreException, BuildException {
+		ICModel cModel = CoreModel.create(ResourcesPlugin.getWorkspace().getRoot());
+		ICProject cProject = cModel.getCProject(targetProjectName);
+		if (!cProject.exists()) {
+			return;
+		}
+
+		if (CoreModel.getDefault().isNewStyleProject(cProject.getProject())) {
+			final IProject project = cProject.getProject();
+			final String wsPath = new Path(basePath).makeAbsolute().append(path).toString();
+
+			ICProjectDescription projectDescription = CoreModel.getDefault().getProjectDescription(project, true);
+			ICConfigurationDescription[] configurationDescriptions = projectDescription.getConfigurations();
+			IConfiguration[] configurations = new IConfiguration[configurationDescriptions.length];
+
+			for (int i = 0; i < configurationDescriptions.length; i++) {
+				ICConfigurationDescription configurationDescription = configurationDescriptions[i];
+				configurations[i] = ManagedBuildManager.getConfigurationForDescription(configurationDescription);
+
+				for (ITool tool : configurations[i].getFilteredTools()) {
+					IOption[] options = tool.getOptions();
+					for (IOption option : options) {
+						if (option.getValueType() == IOption.LIBRARY_PATHS)
+							ManagedBuildManager.setOption(configurations[i], tool, option, new String[] { '"' + wsPath + '"' });
+					}
+				}
+			}
+
+			CoreModel.getDefault().setProjectDescription(project, projectDescription);
+		}
+	}
+
+	/**
+	 * Add libraries as dependencies.
+	 * 
+	 * @param targetProjectName
+	 *            project
+	 * @param libraries
+	 *            list of libraries
+	 * @throws CoreException
+	 * @throws BuildException
+	 */
+	public static void addLibraries(String targetProjectName, String... libraries) throws CoreException, BuildException {
+		ICModel cModel = CoreModel.create(ResourcesPlugin.getWorkspace().getRoot());
+		ICProject cProject = cModel.getCProject(targetProjectName);
+		if (!cProject.exists()) {
+			return;
+		}
+
+		if (CoreModel.getDefault().isNewStyleProject(cProject.getProject())) {
+			final IProject project = cProject.getProject();
+
+			ICProjectDescription projectDescription = CoreModel.getDefault().getProjectDescription(project, true);
+			ICConfigurationDescription[] configurationDescriptions = projectDescription.getConfigurations();
+			IConfiguration[] configurations = new IConfiguration[configurationDescriptions.length];
+
+			for (int i = 0; i < configurationDescriptions.length; i++) {
+				ICConfigurationDescription configurationDescription = configurationDescriptions[i];
+				configurations[i] = ManagedBuildManager.getConfigurationForDescription(configurationDescription);
+
+				for (ITool tool : configurations[i].getFilteredTools()) {
+					IOption[] options = tool.getOptions();
+					for (IOption option : options) {
+						if (option.getValueType() == IOption.LIBRARIES)
+							ManagedBuildManager.setOption(configurations[i], tool, option, libraries);
+					}
+				}
+			}
+
+			CoreModel.getDefault().setProjectDescription(project, projectDescription);
+		}
+	}
+
+	/**
+	 * Create a launch configuration
+	 * 
+	 * @param targetProjectName
+	 *            project
+	 * @throws CoreException
+	 */
+	public static void addLaunchConfiguration(String targetProjectName) throws CoreException {
+		ICModel cModel = CoreModel.create(ResourcesPlugin.getWorkspace().getRoot());
+		ICProject cProject = cModel.getCProject(targetProjectName);
+		if (!cProject.exists()) {
+			return;
+		}
+
+		String os = System.getProperty("os.name").toLowerCase();
+		String binaryExtention = os.startsWith("win") ? ".exe" : "";
+
+		ILaunchManager manager = DebugPlugin.getDefault().getLaunchManager();
+		ILaunchConfigurationType type = manager.getLaunchConfigurationType("org.eclipse.cdt.launch.applicationLaunchType");
+		for (ILaunchConfiguration conf : manager.getLaunchConfigurations(type)) {
+			if (conf.getName().equals(targetProjectName)) {
+				conf.delete();
+				break;
+			}
+		}
+
+		ILaunchConfigurationWorkingCopy workingCopy = type.newInstance(cProject.getProject(), targetProjectName);
+		workingCopy.setMappedResources(new IResource[] { cProject.getResource(), cProject.getProject() });
+		workingCopy.setAttribute(ICDTLaunchConfigurationConstants.ATTR_PROJECT_NAME, targetProjectName);
+		workingCopy.setAttribute(ICDTLaunchConfigurationConstants.ATTR_PROGRAM_NAME, "Debug" + File.separator + targetProjectName + binaryExtention);
+		workingCopy.doSave();
 	}
 }
 
