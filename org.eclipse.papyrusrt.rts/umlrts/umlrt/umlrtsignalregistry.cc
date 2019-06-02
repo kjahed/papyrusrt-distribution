@@ -3,6 +3,7 @@
 #include "basedebug.hh"
 #include "basefatal.hh"
 #include "umlrtsignalregistry.hh"
+#include <string>
 
 UMLRTSignalRegistry::~UMLRTSignalRegistry ( ) 
 {
