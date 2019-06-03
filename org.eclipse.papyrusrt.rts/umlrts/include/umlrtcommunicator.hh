@@ -31,7 +31,7 @@ public:
             void release()
             {
                 if(signalName != NULL)
-                    free(signalName);
+                    free((void*)signalName);
                 if(payload != NULL)
                     free((void*)payload);
             }
@@ -42,13 +42,13 @@ public:
 
             int destPort;
             int srcPort;
-            int destInternal;
-            int srcInternal;
+            bool destInternal;
+            bool srcInternal;
 
             const char * protocolName;
-            char * signalName;
+            const char * signalName;
             const char * payload;
-            size_t payloadSize;
+            int payloadSize;
     };
 
     void setLocalHost( UMLRTHost * host );

@@ -76,6 +76,7 @@ const char * UMLRTCommunicator::waitForDeployment ( )
 	if(recv < 0)
 		FATAL("Error receiving deployment plan");
 
+	buffer[recv] = '\0';
 	StringStream stream((const char*)buffer);
 	Document document;
 	document.ParseStream(stream);
@@ -149,6 +150,7 @@ void UMLRTCommunicator::waitForReadySignal ( UMLRTHost * host )
 	if(recv < 0)
 		FATAL("Error receiving ready signal");
 
+	buffer[recv] = '\0';
 	StringStream stream((const char*)buffer);
 	Document document;
 	document.ParseStream(stream);
@@ -173,6 +175,7 @@ void UMLRTCommunicator::waitForGoSignal ( UMLRTHost * host )
 	if(recv < 0)
 		FATAL("Error receiving go signal");
 
+	buffer[recv] = '\0';
 	StringStream stream((const char*)buffer);
 	Document document;
 	document.ParseStream(stream);
@@ -223,30 +226,43 @@ UMLRTCommunicator::Message* UMLRTCommunicator::sendrecv()
 	UMLRTCommunicator::Message* msg = (UMLRTCommunicator::Message*) messageQueue.dequeue();
 	if(msg != NULL)
 	{
-		sprintf(metadata, "%s,%d,%d,%s,%d,%d,%s,%s,%lu,",
-			msg->destSlot
-			, msg->destPort
-			, msg->destInternal
-			, msg->srcSlot
-			, msg->srcPort
-			, msg->srcInternal
-			, msg->protocolName
-			, msg->signalName
-			, msg->payloadSize);
+		Document document;
+		document.SetObject();
+		Document::AllocatorType& allocator = document.GetAllocator();
 
-		int metadataLen = strlen(metadata);
-		int bufferSize = metadataLen+msg->payloadSize;
+		Value destSlot, srcSlot, protocolName, signalName, payload;
+		destSlot.SetString(StringRef(msg->destSlot));
+		srcSlot.SetString(StringRef(msg->srcSlot));
+		protocolName.SetString(StringRef(msg->protocolName));
+		signalName.SetString(StringRef(msg->signalName));
+		payload.SetString(StringRef(msg->payload));
 
-		char* buffer = (char*) malloc(bufferSize);
-		memcpy(buffer, metadata, metadataLen);
-		memcpy(buffer+metadataLen, msg->payload, msg->payloadSize);
+		Value destPort(msg->destPort), srcPort(msg->srcPort), payloadSize(msg->payloadSize);
+		Value destInternal(msg->destInternal), srcInternal(msg->srcInternal);
 
-    	if ( nn_send (msg->destHost->socket, buffer, bufferSize, 0) < 0 )
-			FATAL("Error sending message %s to host @ %s\n", buffer, msg->destHost->name);
+		document.AddMember("destSlot", destSlot, allocator);
+		document.AddMember("destPort", destPort, allocator);
+		document.AddMember("destInternal", destInternal, allocator);
+
+		document.AddMember("srcSlot", srcSlot, allocator);
+		document.AddMember("srcPort", srcPort, allocator);
+		document.AddMember("srcInternal", srcInternal, allocator);
+
+		document.AddMember("protocolName", protocolName, allocator);
+		document.AddMember("signalName", signalName, allocator);
+
+		document.AddMember("payload", payload, allocator);
+		document.AddMember("payloadSize", payloadSize, allocator);
+
+		StringBuffer buffer;
+		Writer<StringBuffer> writer(buffer);
+		document.Accept(writer);
+
+		if ( nn_send (msg->destHost->socket, buffer.GetString(), buffer.GetSize(), 0) < 0 )
+			FATAL("Error sending message %s to host @ %s\n", buffer.GetString(), msg->destHost->name);
 		
-		//printf("Sent message %s to host @ %s\n", buffer, msg->destHost->name);
+		//printf("Sent message %s to host @ %s\n", buffer.GetString(), msg->destHost->name);
 
-		free(buffer);
 		msg->release();
 		delete msg;
 	}
@@ -255,65 +271,28 @@ UMLRTCommunicator::Message* UMLRTCommunicator::sendrecv()
 	int recv = nn_recv (localsock, &buffer, NN_MSG, NN_DONTWAIT);
 	if(recv > 0)
 	{
-
         UMLRTCommunicator::Message* msg = new UMLRTCommunicator::Message;
-        char* token = strtok(buffer, separator);
-        if(token == NULL)
-        	return NULL;
 
-        msg->destSlot = token;
+        buffer[recv] = '\0';
+		StringStream stream((const char*)buffer);
+		Document document;
+		document.ParseStream(stream);
 
-        token = strtok(NULL, separator);
-        if(token == NULL)
-        	return NULL;
+        msg->destSlot = document["destSlot"].GetString();
+        msg->destPort = document["destPort"].GetInt();
+        msg->destInternal = document["destInternal"].GetBool();
 
-        msg->destPort = atoi(token);
+        msg->srcSlot = document["srcSlot"].GetString();
+        msg->srcPort = document["srcPort"].GetInt();
+        msg->srcInternal = document["srcInternal"].GetBool();
 
-        token = strtok(NULL, separator);
-        if(token == NULL)
-        	return NULL;
+        msg->protocolName = document["protocolName"].GetString();
+        msg->signalName = document["signalName"].GetString();
 
-        msg->destInternal = atoi(token);
+        msg->payloadSize = document["payloadSize"].GetInt();
+        msg->payload = document["payload"].GetString();
 
-        token = strtok(NULL, separator);
-        if(token == NULL)
-        	return NULL;
-
-        msg->srcSlot = token;
-
-        token = strtok(NULL, separator);
-        if(token == NULL)
-        	return NULL;
-
-	 	msg->srcPort = atoi(token);
-
-        token = strtok(NULL, separator);
-        if(token == NULL)
-        	return NULL;
-
-        msg->srcInternal = atoi(token);
-
-        token = strtok(NULL, separator);
-        if(token == NULL)
-        	return NULL;
-
-        msg->protocolName = token;
-
-        token = strtok(NULL, separator);
-        if(token == NULL)
-        	return NULL;
-
-        msg->signalName = token;
-
-        token = strtok(NULL, separator);
-        if(token == NULL)
-        	return NULL;
-
-        msg->payloadSize = atoi(token);
-        msg->payload =  buffer+recv-msg->payloadSize;
-
-        //printf("Received message %s,%d,%s,%d,%s,%s,%lu,%s\n", msg->destSlot, msg->destPort, msg->srcSlot, msg->srcPort, msg->protocolName, msg->signalName, msg->payloadSize, msg->payload);
-
+       // printf("Received message %s,%d,%s,%d,%s,%s,%d,%s\n", msg->destSlot, msg->destPort, msg->srcSlot, msg->srcPort, msg->protocolName, msg->signalName, msg->payloadSize, msg->payload);
 		return msg;
 	}
 
