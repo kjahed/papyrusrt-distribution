@@ -109,22 +109,14 @@ void  UMLRTExecutionDirector::deploy ( )
                 slots[i].remote = true;
                 slots[i].host = host;
             }
-
-            UMLRTSignal emptySignal;
-	        emptySignal.initialize("INITIALIZE", UMLRTSignal::invalidSignalId);
-	        UMLRTFrameService::initializeCapsule(slots[i].capsule, emptySignal);
         }
     }
 
     for( int i=0; i<slotsCount; i++ )
     {
-        const char* controllerName = UMLRTDeploymentMap::getControllerNameForCapsule(slots[i].name);
-        if( controllerName != NULL )
-        {
-            UMLRTSignal emptySignal;
-	        emptySignal.initialize("INITIALIZE", UMLRTSignal::invalidSignalId);
-	        UMLRTFrameService::initializeCapsule(slots[i].capsule, emptySignal);
-        }
+		UMLRTSignal emptySignal;
+		emptySignal.initialize("INITIALIZE", UMLRTSignal::invalidSignalId);
+		UMLRTFrameService::initializeCapsule(slots[i].capsule, emptySignal);
     }
 }
 
@@ -294,49 +286,6 @@ void * UMLRTExecutionDirector::run ( void * args )
 			communicator->connect(slots[i].host);
 	}
 
-//    for( int i=0; i<slotsCount; i++ )
-//    {
-//        if ( !slots[i].remote )
-//        {
-//            //connect to remote ports
-//            for ( int j=0; j<slots[i].numPorts; j++ )
-//            {
-//                for(int k=0; k < slots[i].ports[j].numFarEnd; k++)
-//                {
-//                    if(slots[i].ports[j].farEnds[k].port != NULL)
-//                    {
-//                        UMLRTSlot * farEndSlot = slots[i].ports[j].farEnds[k].port->slot;
-//                        if( farEndSlot->remote )
-//                        {
-//                            if( !farEndSlot->host->connected )
-//                                communicator->connect(farEndSlot->host);
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//        else
-//        {
-//            //connect to remote ports
-//            for ( int j=0; j<slots[i].numPorts; j++ )
-//            {
-//                for(int k=0; k < slots[i].ports[j].numFarEnd; k++)
-//                {
-//                    if(slots[i].ports[j].farEnds[k].port != NULL)
-//                    {
-//                        UMLRTSlot * farEndSlot = slots[i].ports[j].farEnds[k].port->slot;
-//                        if( !farEndSlot->remote )
-//                        {
-//                            if( !slots[i].host->connected )
-//                                communicator->connect(slots[i].host);
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-
-    //communicator->spawn();
     UMLRTDeploymentMap::spawnAllControllers();
 
     while(!abort)
@@ -358,9 +307,9 @@ void * UMLRTExecutionDirector::run ( void * args )
 
         const UMLRTCommsPort * srcPort;
         if(msg->srcInternal)
-        	srcPort = srcSlot->capsule->getInternalPorts()[msg->srcPort];
+        		srcPort = srcSlot->capsule->getInternalPorts()[msg->srcPort];
         else
-        	srcPort = srcSlot->capsule->getBorderPorts()[msg->srcPort];
+        		srcPort = srcSlot->capsule->getBorderPorts()[msg->srcPort];
 
         UMLRTSignal signal;
         UMLRTSignalRegistry::getRegistry().fromJSON((const char*)msg->payload, srcPort, signal);
