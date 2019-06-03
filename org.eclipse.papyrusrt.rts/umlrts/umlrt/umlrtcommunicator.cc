@@ -17,10 +17,10 @@
 #include <stdio.h>
 #include <vector>
 
-#include "flatbuffers/flatbuffers.h"
-#include "fbschemas/deployment_generated.h"
-#include "fbschemas/signal_generated.h"
-#include "fbschemas/message_generated.h"
+#include "rapidjson/document.h"
+#include "rapidjson/stringbuffer.h"
+#include <rapidjson/writer.h>
+using namespace rapidjson;
 
 UMLRTCommunicator::UMLRTCommunicator ( const char * _localaddr )
 	: localaddr(_localaddr), abort(false)
@@ -42,28 +42,25 @@ void UMLRTCommunicator::setLocalHost( UMLRTHost * host )
 void UMLRTCommunicator::sendDeployment ( UMLRTHost * host )
 {
 	const char * deploymentJson = UMLRTDeploymentMap::encode( );
-	std::string deploymentStr(deploymentJson);
-	std::vector<uint8_t> deploymentData(deploymentStr.begin(), deploymentStr.end());
 
-	flatbuffers::FlatBufferBuilder builder(1024);
+	Document document;
+	document.SetObject();
+	Document::AllocatorType& allocator = document.GetAllocator();
 
-	auto sender = builder.CreateString(localhost->name);
-	auto receiver = builder.CreateString(host->name);
-	auto deployment = builder.CreateVector(deploymentData);
+	Value sender, receiver, deployment;
+	sender.SetString(StringRef(localhost->name));
+	receiver.SetString(StringRef(host->name));
+	deployment.SetString(StringRef(deploymentJson));
 
-	FBSchema::MessageBuilder msgBuilder(builder);
-	msgBuilder.add_sender(sender);
-	msgBuilder.add_receiver(receiver);
-	msgBuilder.add_type(FBSchema::Type_DEPLOYMENT);
-	msgBuilder.add_deployment(deployment);
+	document.AddMember("sender", sender, allocator);
+	document.AddMember("receiver", receiver, allocator);
+	document.AddMember("deployment", deployment, allocator);
 
-	auto messageObj = msgBuilder.Finish();    
-    builder.Finish( messageObj );
+	StringBuffer buffer;
+	Writer<StringBuffer> writer(buffer);
+	document.Accept(writer);
 
-    uint8_t* buffer = builder.GetBufferPointer( );
-    int bufferSize = builder.GetSize( );
-
-	if ( nn_send (host->socket, buffer, bufferSize, 0) < 0 )
+	if ( nn_send (host->socket, buffer.GetString(), buffer.GetSize(), 0) < 0 )
 		FATAL("Error sending deployment to host  %s\n", host->name);
 	
 	host->deployed = true;
@@ -79,46 +76,39 @@ const char * UMLRTCommunicator::waitForDeployment ( )
 	if(recv < 0)
 		FATAL("Error receiving deployment plan");
 
-	auto message = FBSchema::GetMessage(buffer);
-	auto sender = message->sender();
-	auto type = message->type();
-	auto deployment = message->deployment();
+	StringStream stream((const char*)buffer);
+	Document document;
+	document.ParseStream(stream);
 
-	if(	!sender 
-		|| type != FBSchema::Type_DEPLOYMENT 
-		|| !deployment )
-		FATAL("Unexpected message received");
+	const char * sender = document["sender"].GetString();
+	const char * receiver = document["receiver"].GetString();
+	const char * deployment = document["deployment"].GetString();
 
-	int deploymentBuffSize = deployment->Length();
-	uint8_t * deploymentBuff = (uint8_t*) malloc(deploymentBuffSize);
-	for(int i=0; i<deploymentBuffSize; i++)
-		deploymentBuff[i] = deployment->Get(i);
-
-	UMLRTDeploymentMap::decode( (const char*) deploymentBuff );
-	return sender->c_str();
+	UMLRTDeploymentMap::decode( deployment );
+	return sender;
 
 	//printf("Got deployment");
 }
 
 void UMLRTCommunicator::sendReadySignal ( UMLRTHost * host )
 {
-	flatbuffers::FlatBufferBuilder builder(1024);
+	Document document;
+	document.SetObject();
+	Document::AllocatorType& allocator = document.GetAllocator();
 
-	auto sender = builder.CreateString(localhost->name);
-	auto receiver = builder.CreateString(host->name);
+	Value sender, receiver, ready(true);
+	sender.SetString(StringRef(localhost->name));
+	receiver.SetString(StringRef(host->name));
 
-	FBSchema::MessageBuilder msgBuilder(builder);
-	msgBuilder.add_sender(sender);
-	msgBuilder.add_receiver(receiver);
-	msgBuilder.add_type(FBSchema::Type_READY_SIGNAL);
+	document.AddMember("sender", sender, allocator);
+	document.AddMember("receiver", receiver, allocator);
+	document.AddMember("ready", ready, allocator);
 
-	auto messageObj = msgBuilder.Finish();    
-    builder.Finish( messageObj );
+	StringBuffer buffer;
+	Writer<StringBuffer> writer(buffer);
+	document.Accept(writer);
 
-    uint8_t* buffer = builder.GetBufferPointer( );
-    int bufferSize = builder.GetSize( );
-
-	if ( nn_send (host->socket, buffer, bufferSize, 0) < 0 )
+	if ( nn_send (host->socket, buffer.GetString(), buffer.GetSize(), 0) < 0 )
 		FATAL("Error sending ready signal to host  %s\n", host->name);
 	
 	host->signaled = true;
@@ -128,24 +118,24 @@ void UMLRTCommunicator::sendReadySignal ( UMLRTHost * host )
 
 void UMLRTCommunicator::sendGoSignal ( UMLRTHost * host )
 {
-	flatbuffers::FlatBufferBuilder builder(1024);
+	Document document;
+	document.SetObject();
+	Document::AllocatorType& allocator = document.GetAllocator();
 
-	auto sender = builder.CreateString(localhost->name);
-	auto receiver = builder.CreateString(host->name);
+	Value sender, receiver, go(true);
+	sender.SetString(StringRef(localhost->name));
+	receiver.SetString(StringRef(host->name));
 
-	FBSchema::MessageBuilder msgBuilder(builder);
-	msgBuilder.add_sender(sender);
-	msgBuilder.add_receiver(receiver);
-	msgBuilder.add_type(FBSchema::Type_GO_SIGNAL);
+	document.AddMember("sender", sender, allocator);
+	document.AddMember("receiver", receiver, allocator);
+	document.AddMember("go", go, allocator);
 
-	auto messageObj = msgBuilder.Finish();
-    builder.Finish( messageObj );
+	StringBuffer buffer;
+	Writer<StringBuffer> writer(buffer);
+	document.Accept(writer);
 
-    uint8_t* buffer = builder.GetBufferPointer( );
-    int bufferSize = builder.GetSize( );
-
-	if ( nn_send (host->socket, buffer, bufferSize, 0) < 0 )
-		FATAL("Error sending go signal to host  %s\n", host->name);
+	if ( nn_send (host->socket, buffer.GetString(), buffer.GetSize(), 0) < 0 )
+		FATAL("Error sending ready signal to host  %s\n", host->name);
 
 	host->goSignaled = true;
 
@@ -159,15 +149,19 @@ void UMLRTCommunicator::waitForReadySignal ( UMLRTHost * host )
 	if(recv < 0)
 		FATAL("Error receiving ready signal");
 
-	auto message = FBSchema::GetMessage(buffer);
-	auto sender = message->sender();
-	auto type = message->type();
+	StringStream stream((const char*)buffer);
+	Document document;
+	document.ParseStream(stream);
 
-	if(	!sender 
-		|| type != FBSchema::Type_READY_SIGNAL)
-		FATAL("Unexpected message received");
-	
-	host->gotack = true;
+	const char * sender;
+	const char * receiver;
+	bool ready;
+
+	sender = document["sender"].GetString();
+	receiver = document["receiver"].GetString();
+	ready = document["ready"].GetBool();
+	if(ready)
+		host->gotack = true;
 
 	//printf("Got ready signal from %s\n", (char*) buffer);
 }
@@ -179,13 +173,17 @@ void UMLRTCommunicator::waitForGoSignal ( UMLRTHost * host )
 	if(recv < 0)
 		FATAL("Error receiving go signal");
 
-	auto message = FBSchema::GetMessage(buffer);
-	auto sender = message->sender();
-	auto type = message->type();
+	StringStream stream((const char*)buffer);
+	Document document;
+	document.ParseStream(stream);
 
-	if(	!sender
-		|| type != FBSchema::Type_GO_SIGNAL)
-		FATAL("Unexpected message received");
+	const char * sender;
+	const char * receiver;
+	bool go;
+
+	sender = document["sender"].GetString();
+	receiver = document["receiver"].GetString();
+	go = document["go"].GetBool();
 }
 
 void UMLRTCommunicator::connect ( UMLRTHost * host )
