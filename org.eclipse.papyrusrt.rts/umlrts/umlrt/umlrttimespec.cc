@@ -197,6 +197,7 @@ static int UMLRTObject_fprintf_UMLRTTimespec( FILE *ostream, const UMLRTObject_c
     return nchar;
 }
 
+
 const UMLRTObject_class UMLRTType_UMLRTTimespec
 = {
         UMLRTObjectInitialize<UMLRTTimespec>,
@@ -204,7 +205,11 @@ const UMLRTObject_class UMLRTType_UMLRTTimespec
         UMLRTObject_decode,
         UMLRTObject_encode,
         UMLRTObjectDestroy<UMLRTTimespec>,
-        UMLRTObject_fprintf_UMLRTTimespec,
+		UMLRTObject_fprintf_UMLRTTimespec,
+		//TODO: json encoding
+		NULL,
+		//TODO: json decoding
+		NULL,
         "UMLRTTimespec",
         NULL, // super
         {sizeof(UMLRTTimespec), 0, NULL},

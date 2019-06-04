@@ -16,6 +16,9 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <rapidjson/document.h>
+using namespace rapidjson;
+
 // Type descriptors used for encoding/decoding data and passing user data within the RTS API.
 // A number of UMLRTType_xxx descriptors are pre-defined by the library. See below.
 
@@ -79,6 +82,8 @@ struct UMLRTObject_class
     void * ( * encode ) ( const UMLRTObject_class * desc, const void * src, void * dst, int nest );
     void * ( * destroy ) ( const UMLRTObject_class * desc, void * data );
     int ( * fprintf ) ( FILE * ostream, const UMLRTObject_class * desc, const void * data, int nest, int arraySize ); // returns number of chars output.
+    Value * (* toJson) ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize );
+    void * (* fromJson) ( Value & value, const UMLRTObject_class * desc, void * dst, int nest );
 
     const char * name;
     const UMLRTObject_class * const super; // Base type
@@ -106,6 +111,8 @@ extern size_t UMLRTObject_getSize ( const UMLRTObject_class * desc );
 
 // The following returns the number of characters that were printed.
 extern int UMLRTObject_fprintf ( FILE *ostream, const UMLRTObject_class * desc, const void * data, int nest = 0, int arraySize = 1 );
+extern Value * UMLRTObject_toJson ( Document & document, const UMLRTObject_class * desc, const void * data, int nest = 0, int arraySize = 1 );
+extern void * UMLRTObject_fromJson ( Value & value, const UMLRTObject_class * desc, void * dst, int nest = 0 );
 
 // These are the primitive data-types with pre-defined data descriptors.
 extern const UMLRTObject_class UMLRTType_bool;

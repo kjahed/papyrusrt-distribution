@@ -453,6 +453,591 @@ static int UMLRTObject_fprintf_ushort ( FILE *ostream, const UMLRTObject_class *
     return nchar;
 }
 
+// Assumes 'decoded' data (not 'encoded' data).
+Value * UMLRTObject_toJson ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    for (int ai = 0;  ai < arraySize; ++ai)
+    {
+        uint8_t * ai_base = (uint8_t *)data + (desc->object.sizeOf * ai);
+        Value allFields(kArrayType);
+        for (size_t fi = 0; fi < desc->object.numFields; ++fi)
+        {
+            const UMLRTObject_field * fld = &desc->object.fields[fi];
+            uint8_t * fi_base = ai_base + fld->offset;
+
+            Value * fieldVal = fld->desc->toJson(document, fld->desc, fi_base, nest+1, fld->arraySize);
+            allFields.PushBack(*fieldVal, document.GetAllocator());
+        }
+        val.PushBack(allFields, document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_bool ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    bool b;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(b)), &b);
+        val.PushBack(Value().SetBool(b), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_char ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    for (int i = 0; i < arraySize; ++i)
+    {
+        char c = *((char*)data + i);
+        val.PushBack(Value().SetString(&c, 1, document.GetAllocator()), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_double ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    double d;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(d)), &d);
+        val.PushBack(Value().SetDouble(d), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_float ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    float f;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(f)), &f);
+        val.PushBack(Value().SetFloat(f), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_int ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    int iv;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(iv)), &iv);
+        val.PushBack(Value().SetInt(iv), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_long ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    long long l;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(l)), &l);
+        val.PushBack(Value().SetInt64(l), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_longdouble ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    long double ld;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(ld)), &ld);
+        val.PushBack(Value().SetDouble(ld), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_longlong ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    long long ll;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(ll)), &ll);
+        val.PushBack(Value().SetInt64(ll), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_charptr ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    void * p;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(p)), &p);
+        val.PushBack(Value().SetString((char*)p, document.GetAllocator()), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_short ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    short sh;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(sh)), &sh);
+        val.PushBack(Value().SetInt((int)sh), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_uchar ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    unsigned char uc;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(uc)), &uc);
+        val.PushBack(Value().SetUint((uint8_t)uc), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_uint ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    unsigned int ui;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(ui)), &ui);
+        val.PushBack(Value().SetUint(ui), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_ulong ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    unsigned long ul;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(ul)), &ul);
+        val.PushBack(Value().SetUint64(ul), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_ulonglong ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    unsigned long long ll;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(ll)), &ll);
+        val.PushBack(Value().SetUint64(ll), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+static Value * UMLRTObject_toJson_ushort ( Document & document, const UMLRTObject_class * desc, const void * data, int nest, int arraySize )
+{
+    Value type;
+    Value val(kArrayType);
+    Value * obj = new Value(kObjectType);
+
+    unsigned short ush;
+    for (int i = 0; i < arraySize; ++i)
+    {
+        desc->copy(desc, ((uint8_t*)data + i*sizeof(ush)), &ush);
+        val.PushBack(Value().SetUint(ush), document.GetAllocator());
+    }
+
+    type.SetString(StringRef(desc->name));
+    obj->AddMember("type", type, document.GetAllocator());
+    obj->AddMember("value", val, document.GetAllocator());
+
+    return obj;
+}
+
+void * UMLRTObject_fromJson ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		int i = 0;
+		for (Value::ConstValueIterator itr2 = itr->Begin(); itr2 != itr->End(); ++itr2) {
+			p = desc->object.fields[i].desc->fromJson((Value&)(*itr2)["value"], desc->object.fields[i].desc, p, nest+1);
+			if(p == NULL)
+				return NULL;
+			i++;
+		}
+    }
+    return p;
+}
+
+void * UMLRTObject_fromJson_bool ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsBool())
+			return NULL;
+        bool b = itr->GetBool();
+        p = desc->copy(desc, &b, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_char ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsString())
+			return NULL;
+        const char * c = itr->GetString();
+        p = desc->copy(desc, c, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_double ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsDouble())
+			return NULL;
+        double d = itr->GetDouble();
+        p = desc->copy(desc, &d, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_float ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsFloat())
+			return NULL;
+        float f = itr->GetFloat();
+        p = desc->copy(desc, &f, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_int ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+	void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsInt())
+			return NULL;
+
+		int i = itr->GetInt();
+        p = desc->copy(desc, &i, p);
+    }
+    return p;
+}
+
+void * UMLRTObject_fromJson_long ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsInt64())
+			return NULL;
+        long l = itr->GetInt64();
+        p = desc->copy(desc, &l, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_longdouble ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsDouble())
+			return NULL;
+        long double ld = itr->GetDouble();
+        p = desc->copy(desc, &ld, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_longlong ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsInt64())
+			return NULL;
+        long long ll = itr->GetInt64();
+        p = desc->copy(desc, &ll, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_charptr ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsString())
+			return NULL;
+        const char * str = itr->GetString();
+        p = desc->copy(desc, &str, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_short ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+    		if(!itr->IsInt())
+    			return NULL;
+        short s = itr->GetInt();
+        p = desc->copy(desc, &s, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_uchar ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsUint())
+			return NULL;
+        unsigned char c = itr->GetUint();
+        p = desc->copy(desc, &c, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_uint ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsUint())
+			return NULL;
+        unsigned int ui = itr->GetUint();
+        p = desc->copy(desc, &ui, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_ulong ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsUint64())
+			return NULL;
+        unsigned long ul = itr->GetUint64();
+        p = desc->copy(desc, &ul, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_ulonglong ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsUint64())
+			return NULL;
+        unsigned long long ul = itr->GetUint64();
+        p = desc->copy(desc, &ul, p);
+    }
+
+    return p;
+}
+
+void * UMLRTObject_fromJson_ushort ( Value & value, const UMLRTObject_class * desc, void * dst, int nest )
+{
+	if(!value.IsArray())
+		return NULL;
+
+    void * p = dst;
+    for (Value::ConstValueIterator itr = value.Begin(); itr != value.End(); ++itr) {
+		if(!itr->IsUint())
+			return NULL;
+        unsigned short us = itr->GetUint();
+        p = desc->copy(desc, &us, p);
+    }
+
+    return p;
+}
+
 const UMLRTObject_class UMLRTType_bool
 = {
         UMLRTObject_initialize,
@@ -461,6 +1046,8 @@ const UMLRTObject_class UMLRTType_bool
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_bool,
+		UMLRTObject_toJson_bool,
+		UMLRTObject_fromJson_bool,
         "bool",
         NULL, // super
         {sizeof(bool), 0, NULL}, // object
@@ -476,6 +1063,8 @@ const UMLRTObject_class UMLRTType_char
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_char,
+		UMLRTObject_toJson_char,
+		UMLRTObject_fromJson_char,
         "char",
         NULL, // super
         {sizeof(char), 0, NULL}, // object
@@ -491,6 +1080,8 @@ const UMLRTObject_class UMLRTType_double
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_double,
+		UMLRTObject_toJson_double,
+		UMLRTObject_fromJson_double,
         "double",
         NULL, // super
         {sizeof(double), 0, NULL}, // object
@@ -506,6 +1097,8 @@ const UMLRTObject_class UMLRTType_float
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_float,
+		UMLRTObject_toJson_float,
+		UMLRTObject_fromJson_float,
         "float",
         NULL, // super
         {sizeof(float), 0, NULL}, // object
@@ -521,6 +1114,8 @@ const UMLRTObject_class UMLRTType_int
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_int,
+		UMLRTObject_toJson_int,
+		UMLRTObject_fromJson_int,
         "int",
         NULL, // super
         {sizeof(int), 0, NULL}, // object
@@ -536,6 +1131,8 @@ const UMLRTObject_class UMLRTType_long
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_long,
+		UMLRTObject_toJson_long,
+		UMLRTObject_fromJson_long,
         "long",
         NULL, // super
         {sizeof(long), 0, NULL}, // object
@@ -551,6 +1148,8 @@ const UMLRTObject_class UMLRTType_longdouble
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_longdouble,
+		UMLRTObject_toJson_longdouble,
+		UMLRTObject_fromJson_longdouble,
         "longdouble",
         NULL, // super
         {sizeof(long double), 0, NULL}, // object
@@ -566,6 +1165,8 @@ const UMLRTObject_class UMLRTType_longlong
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_longlong,
+		UMLRTObject_toJson_longlong,
+		UMLRTObject_fromJson_longlong,
         "longlong",
         NULL, // super
         {sizeof(long long), 0, NULL}, // object
@@ -581,6 +1182,8 @@ const UMLRTObject_class UMLRTType_ptr
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_ptr,
+		NULL,
+		NULL,
         "ptr",
         NULL, // super
         {sizeof(void *), 0, NULL}, // object
@@ -596,6 +1199,8 @@ const UMLRTObject_class UMLRTType_charptr
         UMLRTObject_encode,
         UMLRTObject_destroy_charptr,
         UMLRTObject_fprintf_charptr,
+		UMLRTObject_toJson_charptr,
+		UMLRTObject_fromJson_charptr,
         "charptr",
         NULL, // super
         {sizeof(char *), 0, NULL}, // object
@@ -611,6 +1216,8 @@ const UMLRTObject_class UMLRTType_short
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_short,
+		UMLRTObject_toJson_short,
+		UMLRTObject_fromJson_short,
         "short",
         NULL, // super
         {sizeof(short), 0, NULL}, // object
@@ -626,6 +1233,8 @@ const UMLRTObject_class UMLRTType_uchar
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_uchar,
+		UMLRTObject_toJson_uchar,
+		UMLRTObject_fromJson_uchar,
         "uchar",
         NULL, // super
         {sizeof(unsigned char), 0, NULL}, // object
@@ -641,6 +1250,8 @@ const UMLRTObject_class UMLRTType_uint
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_uint,
+		UMLRTObject_toJson_uint,
+		UMLRTObject_fromJson_uint,
         "uint",
         NULL, // super
         {sizeof(unsigned int), 0, NULL}, // object
@@ -656,6 +1267,8 @@ const UMLRTObject_class UMLRTType_ulong
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_ulong,
+		UMLRTObject_toJson_ulong,
+		UMLRTObject_fromJson_ulong,
         "ulong",
         NULL, // super
         {sizeof(unsigned long), 0, NULL}, // object
@@ -671,6 +1284,8 @@ const UMLRTObject_class UMLRTType_ulonglong
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_ulonglong,
+		UMLRTObject_toJson_ulonglong,
+		UMLRTObject_fromJson_ulonglong,
         "ulonglong",
         NULL, // super
         {sizeof(unsigned long long), 0, NULL}, // object
@@ -686,6 +1301,8 @@ const UMLRTObject_class UMLRTType_ushort
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf_ushort,
+		UMLRTObject_toJson_ushort,
+		UMLRTObject_fromJson_ushort,
         "ushort",
         NULL, // super
         {sizeof(unsigned short), 0, NULL}, // object
@@ -701,6 +1318,8 @@ const UMLRTObject_class UMLRTObject_empty
         UMLRTObject_encode,
         UMLRTObject_destroy,
         UMLRTObject_fprintf,
+		UMLRTObject_toJson,
+		UMLRTObject_fromJson,
         "empty",
         NULL, // super
         {0, 0, NULL}, // object

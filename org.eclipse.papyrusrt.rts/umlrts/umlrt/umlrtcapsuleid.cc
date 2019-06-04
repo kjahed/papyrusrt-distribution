@@ -49,6 +49,10 @@ const UMLRTObject_class UMLRTType_UMLRTCapsuleId
         UMLRTObject_encode,
         UMLRTObjectDestroy<UMLRTCapsuleId>,
         UMLRTObject_fprintf_UMLRTCapsuleId,
+		//TODO: json encoding
+		NULL,
+		//TODO: json decoding
+		NULL,
         "UMLRTCapsuleId",
         NULL, // super
         {sizeof(UMLRTCapsuleId), 0, NULL},
