@@ -17,6 +17,11 @@
 #include "umlrtdeploymentmap.hh"
 #include "umlrtslot.hh"
 
+#include "rapidjson/document.h"
+#include "rapidjson/stringbuffer.h"
+#include <rapidjson/writer.h>
+using namespace rapidjson;
+
 // This is the base class for each generated capsule that is defined in the model.
 
 // It will have the implementation of the state machine and will include data
@@ -38,6 +43,8 @@ public:
     virtual const char * getCurrentStateString ( ) const { return ""; }
     virtual void initialize ( const UMLRTMessage & msg ) = 0;
     virtual void inject ( const UMLRTMessage & msg ) = 0;
+    virtual const char * save( ) = 0;
+    virtual void load(const char * data) = 0;
     virtual void logMsg ( );
     virtual void unexpectedMessage ( ) const;
     virtual void unbindPort ( bool isBorder, int portIndex, int farEndIndex );
@@ -57,6 +64,19 @@ public:
     const UMLRTMessage * msg;
 
 protected:
+
+    class Serializer {
+            public:
+    				Serializer ( );
+    				void addField ( const UMLRTObject_field & field, void * data );
+    				const char * write ( int currentState = -1 );
+    				void read ( const char * json, int * currentState = NULL);
+
+            private:
+                Document document;
+                Value fields;
+                int  * currentState;
+        };
 
     // User can get the controller e.g. for incarnation or getting the last error.
     UMLRTController * context ( ) const { return slot->controller; }

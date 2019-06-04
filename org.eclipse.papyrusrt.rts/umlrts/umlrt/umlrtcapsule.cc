@@ -59,3 +59,39 @@ void UMLRTCapsule::unexpectedMessage ( ) const
             getMsg()->sap() ? (getMsg()->sap()->role() ? getMsg()->sap()->role()->protocol : "(sap no role)") : "(no sap)",
             getMsg()->getSignalName());
 }
+
+UMLRTCapsule::Serializer::Serializer ( )
+{
+	document.SetObject();
+	fields.SetArray();
+}
+
+void UMLRTCapsule::Serializer::addField ( const UMLRTObject_field & field, void * data )
+{
+	Value * value = field.desc->toJson(document, field.desc, data, 0, field.arraySize);
+	fields.PushBack(*value, document.GetAllocator());
+	//TODO: delete value?
+}
+
+const char * UMLRTCapsule::Serializer::write ( int currentState )
+{
+	document.AddMember("fields", fields, document.GetAllocator());
+
+	if(currentState != -1)
+		document.AddMember("currentState", Value().SetInt(currentState), document.GetAllocator());
+
+	StringBuffer buffer;
+	Writer<StringBuffer> writer(buffer);
+	document.Accept(writer);
+	return strdup(buffer.GetString());
+}
+
+void UMLRTCapsule::Serializer::read ( const char * json, int * currentState )
+{
+	document.Parse(json);
+
+	if(currentState != NULL)
+		*currentState = document["currentState"].GetInt();
+}
+
+

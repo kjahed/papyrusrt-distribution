@@ -12,6 +12,7 @@ import java.util.Set;
 
 import org.eclipse.papyrusrt.codegen.cpp.CppCodePattern;
 import org.eclipse.papyrusrt.codegen.cpp.CppCodePattern.Output;
+import org.eclipse.papyrusrt.codegen.cpp.TypesUtil;
 import org.eclipse.papyrusrt.codegen.cpp.rts.UMLRTRuntime;
 import org.eclipse.papyrusrt.codegen.instance.model.CapsuleInstance;
 import org.eclipse.papyrusrt.codegen.instance.model.ICapsuleInstance;
@@ -50,6 +51,7 @@ import org.eclipse.papyrusrt.codegen.lang.cpp.expr.StringLiteral;
 import org.eclipse.papyrusrt.codegen.lang.cpp.external.StandardLibrary;
 import org.eclipse.papyrusrt.codegen.lang.cpp.stmt.CodeBlock;
 import org.eclipse.papyrusrt.codegen.lang.cpp.stmt.ConditionalStatement;
+import org.eclipse.papyrusrt.codegen.lang.cpp.stmt.ReturnStatement;
 import org.eclipse.papyrusrt.codegen.lang.cpp.stmt.SwitchClause;
 import org.eclipse.papyrusrt.codegen.lang.cpp.stmt.SwitchStatement;
 import org.eclipse.papyrusrt.xtumlrt.aexpr.uml.XTUMLRTBoundsEvaluator;
@@ -70,7 +72,7 @@ import org.eclipse.papyrusrt.xtumlrt.util.XTUMLRTUtil;
  * 
  * @author Ernesto Posse
  */
-public class CapsuleGenerator extends BasicClassGenerator {
+public class CapsuleGenerator extends SerializableClassGenerator {
 
 	/** The model {@link Capsule} element for which code is to be generated. */
 	protected final Capsule capsule;
@@ -162,7 +164,84 @@ public class CapsuleGenerator extends BasicClassGenerator {
 		return generatePorts(cls, ctor)
 				&& generateParts(cls, instance, ctor)
 				&& generateRTSFunctions(cls, instance)
-				&& super.generate(cls);
+				&& super.generate(cls)
+				&& generateSaveFunction(cls)
+				&& generateLoadFunction(cls);
+	}
+
+	private boolean generateSaveFunction(CppClass cls) {
+		MemberFunction func = new MemberFunction(PrimitiveType.CHAR.const_().ptr(), "save");
+		func.setVirtual();
+		cls.addMember(CppClass.Visibility.PUBLIC, func);
+
+		Variable serializerVar = new Variable(UMLRTRuntime.UMLRTCapsule.Serializer.getType(), "serializer");
+		func.add(serializerVar);
+
+		MemberField fieldsArray = new MemberField(UMLRTRuntime.UMLRTObject.getFieldType().const_().arrayOf(null), "fields");
+
+		int i = 0;
+		for (Attribute attr : XTUMLRTExtensions.getAllAttributes(capsule)) {
+			MemberField attrField = new MemberField(
+					TypesUtil.createRTTypeAccess(cpp, attr, attr.getType()).getType(), attr.getName());
+
+			AbstractFunctionCall addFieldCall = UMLRTRuntime.UMLRTCapsule.Serializer.addField(
+					new ElementAccess(serializerVar),
+					new IndexExpr(new MemberAccess(cls, fieldsArray), new IntegralLiteral(i)),
+					new AddressOfExpr(new MemberAccess(cls, attrField)));
+
+			func.add(addFieldCall);
+			i++;
+		}
+
+		if (XTUMLRTExtensions.getActualBehaviour(capsule).getName() != null) {
+			MemberField currentStateField = new MemberField(PrimitiveType.INT, "currentState");
+			func.add(new ReturnStatement(
+					UMLRTRuntime.UMLRTCapsule.Serializer.write(new ElementAccess(serializerVar), new MemberAccess(cls, currentStateField))));
+		} else {
+			func.add(new ReturnStatement(
+					UMLRTRuntime.UMLRTCapsule.Serializer.write(new ElementAccess(serializerVar))));
+		}
+
+		return true;
+	}
+
+	private boolean generateLoadFunction(CppClass cls) {
+		MemberFunction func = new MemberFunction(PrimitiveType.VOID, "load");
+		func.setVirtual();
+		cls.addMember(CppClass.Visibility.PUBLIC, func);
+
+		Parameter paramJson = new Parameter(PrimitiveType.CHAR.const_().ptr(), "json");
+		func.add(paramJson);
+
+		Variable serializerVar = new Variable(UMLRTRuntime.UMLRTCapsule.Serializer.getType(), "serializer");
+		func.add(serializerVar);
+
+		MemberField fieldsArray = new MemberField(UMLRTRuntime.UMLRTObject.getFieldType().const_().arrayOf(null), "fields");
+
+		int i = 0;
+		for (Attribute attr : XTUMLRTExtensions.getAllAttributes(capsule)) {
+			MemberField attrField = new MemberField(
+					TypesUtil.createRTTypeAccess(cpp, attr, attr.getType()).getType(), attr.getName());
+
+			AbstractFunctionCall addFieldCall = UMLRTRuntime.UMLRTCapsule.Serializer.addField(
+					new ElementAccess(serializerVar),
+					new IndexExpr(new MemberAccess(cls, fieldsArray), new IntegralLiteral(i)),
+					new AddressOfExpr(new MemberAccess(cls, attrField)));
+
+			func.add(addFieldCall);
+			i++;
+		}
+
+		if (XTUMLRTExtensions.getActualBehaviour(capsule).getName() != null) {
+			MemberField currentStateField = new MemberField(PrimitiveType.INT, "currentState");
+			func.add(UMLRTRuntime.UMLRTCapsule.Serializer.read(
+					new ElementAccess(serializerVar), new ElementAccess(paramJson), new CastExpr(
+							PrimitiveType.INT.ptr(), new AddressOfExpr(new MemberAccess(cls, currentStateField)))));
+		} else {
+			func.add(UMLRTRuntime.UMLRTCapsule.Serializer.read(new ElementAccess(serializerVar), new ElementAccess(paramJson)));
+		}
+
+		return true;
 	}
 
 	@Override

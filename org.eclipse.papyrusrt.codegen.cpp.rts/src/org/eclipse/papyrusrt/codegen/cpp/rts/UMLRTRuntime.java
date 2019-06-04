@@ -171,6 +171,60 @@ public final class UMLRTRuntime {
 		public static AbstractFunctionCall getMsg(Expression self) {
 			return new MemberFunctionCall(self, getMsgFunction);
 		}
+
+		public static class Serializer {
+			public static final ExternalElement Element = new ExternalFwdDeclarable(umlrtcapsule_hh, "UMLRTCapsule::Serializer", "class UMLRTCapsule::Serializer");
+
+			public static Type getType() {
+				return Element.getType();
+			}
+
+			public static final AbstractFunctionCall Ctor() {
+				AbstractFunctionCall call = new ExternalConstructorCall(Element);
+				return call;
+			}
+
+			public static final MemberFunction addFieldFunction = new MemberFunction(PrimitiveType.VOID, "addField");
+			public static final MemberFunction writeFunction = new MemberFunction(PrimitiveType.CHAR.ptr().const_(), "write");
+			public static final MemberFunction readFunction = new MemberFunction(PrimitiveType.VOID, "read");
+
+			static {
+				addFieldFunction.add(new Parameter(UMLRTObject.getFieldType().const_().ref(), "field"));
+				addFieldFunction.add(new Parameter(PrimitiveType.VOID.ptr(), "data"));
+				readFunction.add(new Parameter(PrimitiveType.CHAR.ptr().const_(), "json"));
+				readFunction.add(new Parameter(PrimitiveType.INT.ptr(), "currentState"));
+			}
+
+			public static AbstractFunctionCall addField(Expression self, Expression field, Expression data) {
+				MemberFunctionCall call = new MemberFunctionCall(self, addFieldFunction);
+				call.addArgument(field);
+				call.addArgument(data);
+				return call;
+			}
+
+			public static AbstractFunctionCall write(Expression self) {
+				return new MemberFunctionCall(self, writeFunction);
+			}
+
+			public static AbstractFunctionCall write(Expression self, Expression currentState) {
+				MemberFunctionCall call = new MemberFunctionCall(self, writeFunction);
+				call.addArgument(currentState);
+				return call;
+			}
+
+			public static AbstractFunctionCall read(Expression self, Expression json) {
+				MemberFunctionCall call = new MemberFunctionCall(self, readFunction);
+				call.addArgument(json);
+				return call;
+			}
+
+			public static AbstractFunctionCall read(Expression self, Expression json, Expression currentState) {
+				MemberFunctionCall call = new MemberFunctionCall(self, readFunction);
+				call.addArgument(json);
+				call.addArgument(currentState);
+				return call;
+			}
+		}
 	}
 
 	public static class UMLRTCapsuleClass {
@@ -540,6 +594,8 @@ public final class UMLRTRuntime {
 		private static final Function UMLRTObject_destroy_f = new Function(umlrtobjectclass_hh, LinkageSpec.EXTERN, PrimitiveType.VOID.ptr(), "UMLRTObject_destroy");
 		private static final Function UMLRTObject_getSize_f = new Function(umlrtobjectclass_hh, LinkageSpec.EXTERN, StandardLibrary.size_t, "UMLRTObject_getSize");
 		private static final Function UMLRTObject_fprintf_f = new Function(umlrtobjectclass_hh, LinkageSpec.EXTERN, PrimitiveType.INT, "UMLRTObject_fprintf");
+		private static final Function UMLRTObject_toJson_f = new Function(umlrtobjectclass_hh, LinkageSpec.EXTERN, PrimitiveType.INT, "UMLRTObject_toJson");
+		private static final Function UMLRTObject_fromJson_f = new Function(umlrtobjectclass_hh, LinkageSpec.EXTERN, PrimitiveType.INT, "UMLRTObject_fromJson");
 
 		public static Expression DEFAULT_VERSION() {
 			return new ElementAccess(DEFAULT_VERSION_t);
@@ -695,6 +751,14 @@ public final class UMLRTRuntime {
 
 		public static Expression UMLRTObject_fprintf() {
 			return new ElementAccess(UMLRTObject_fprintf_f);
+		}
+
+		public static Expression UMLRTObject_toJson() {
+			return new ElementAccess(UMLRTObject_toJson_f);
+		}
+
+		public static Expression UMLRTObject_fromJson() {
+			return new ElementAccess(UMLRTObject_fromJson_f);
 		}
 
 		public static Expression getSize(Expression desc) {

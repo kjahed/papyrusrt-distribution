@@ -92,6 +92,8 @@ public class SerializableClassGenerator extends BasicClassGenerator {
 		descInit.addExpression(UMLRTRuntime.UMLRTObject.UMLRTObjectGeneric_destroy(cls.getName()));
 		// descInit.addExpression( UMLRTRuntime.UMLRTObject.UMLRTObject_getSize() );
 		descInit.addExpression(UMLRTRuntime.UMLRTObject.UMLRTObject_fprintf());
+		descInit.addExpression(UMLRTRuntime.UMLRTObject.UMLRTObject_toJson());
+		descInit.addExpression(UMLRTRuntime.UMLRTObject.UMLRTObject_fromJson());
 
 		descInit.addExpression(new StringLiteral(data.getName()));
 		descInit.addExpression(StandardLibrary.NULL()); // TODO super (Base type)
