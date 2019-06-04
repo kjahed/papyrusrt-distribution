@@ -77,9 +77,8 @@ const char * UMLRTCommunicator::waitForDeployment ( )
 		FATAL("Error receiving deployment plan");
 
 	buffer[recv] = '\0';
-	StringStream stream((const char*)buffer);
 	Document document;
-	document.ParseStream(stream);
+	document.Parse(strdup((const char*)buffer));
 
 	const char * sender = document["sender"].GetString();
 	const char * receiver = document["receiver"].GetString();
@@ -151,9 +150,8 @@ void UMLRTCommunicator::waitForReadySignal ( UMLRTHost * host )
 		FATAL("Error receiving ready signal");
 
 	buffer[recv] = '\0';
-	StringStream stream((const char*)buffer);
 	Document document;
-	document.ParseStream(stream);
+	document.Parse(strdup((const char*)buffer));
 
 	const char * sender;
 	const char * receiver;
@@ -176,9 +174,8 @@ void UMLRTCommunicator::waitForGoSignal ( UMLRTHost * host )
 		FATAL("Error receiving go signal");
 
 	buffer[recv] = '\0';
-	StringStream stream((const char*)buffer);
 	Document document;
-	document.ParseStream(stream);
+	document.Parse(strdup((const char*)buffer));
 
 	const char * sender;
 	const char * receiver;
@@ -274,9 +271,8 @@ UMLRTCommunicator::Message* UMLRTCommunicator::sendrecv()
         UMLRTCommunicator::Message* msg = new UMLRTCommunicator::Message;
 
         buffer[recv] = '\0';
-		StringStream stream((const char*)buffer);
 		Document document;
-		document.ParseStream(stream);
+		document.Parse(strdup((const char*)buffer));
 
         msg->destSlot = document["destSlot"].GetString();
         msg->destPort = document["destPort"].GetInt();
@@ -290,8 +286,9 @@ UMLRTCommunicator::Message* UMLRTCommunicator::sendrecv()
         msg->signalName = document["signalName"].GetString();
 
         msg->payloadSize = document["payloadSize"].GetInt();
-        msg->payload = document["payload"].GetString();
+        msg->payload = strdup(document["payload"].GetString());
 
+        //printf("Received message: %s\n", buffer);
        // printf("Received message %s,%d,%s,%d,%s,%s,%d,%s\n", msg->destSlot, msg->destPort, msg->srcSlot, msg->srcPort, msg->protocolName, msg->signalName, msg->payloadSize, msg->payload);
 		return msg;
 	}

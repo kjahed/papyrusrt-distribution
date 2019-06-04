@@ -396,9 +396,8 @@ const char * UMLRTDeploymentMap::payload = NULL;
 
 /*static*/ void UMLRTDeploymentMap::decode( const char* json )
 {
-	rapidjson::StringStream stream(json);
 	rapidjson::Document document;
-	document.ParseStream(stream);
+	document.Parse(json);
 
 	const rapidjson::Value& hosts = document["hosts"];
 	for (rapidjson::Value::ConstValueIterator itr = hosts.Begin(); itr != hosts.End(); ++itr) {

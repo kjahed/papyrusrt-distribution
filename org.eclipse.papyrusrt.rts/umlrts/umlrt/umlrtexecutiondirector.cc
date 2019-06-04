@@ -312,7 +312,7 @@ void * UMLRTExecutionDirector::run ( void * args )
         		srcPort = srcSlot->capsule->getBorderPorts()[msg->srcPort];
 
         UMLRTSignal signal;
-        UMLRTSignalRegistry::getRegistry().fromJSON((const char*)msg->payload, srcPort, signal);
+        UMLRTSignalRegistry::getRegistry().fromJSON(msg->payload, srcPort, signal);
 
         if(destSlot->capsule == NULL)
             FATAL("No capsule in destination slot");
