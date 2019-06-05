@@ -14,6 +14,7 @@
 #include "umlrtmessage.hh"
 #include "basedebug.hh"
 #include "basedebugtype.hh"
+#include "basefatal.hh"
 
 UMLRTCapsule::~UMLRTCapsule ( )
 {
@@ -62,23 +63,51 @@ void UMLRTCapsule::unexpectedMessage ( ) const
 
 UMLRTCapsule::Serializer::Serializer ( )
 {
-	document.SetObject();
-	fields.SetArray();
+	fieldObjMap = new UMLRTHashMap("fieldObjMap", UMLRTHashMap::compareString, false/*objectIsString*/);
+	fieldDataMap = new UMLRTHashMap("fieldDataMap", UMLRTHashMap::compareString, false/*objectIsString*/);
 }
 
-void UMLRTCapsule::Serializer::addField ( const UMLRTObject_field & field, void * data )
+UMLRTCapsule::Serializer::~Serializer ( )
 {
-	Value * value = field.desc->toJson(document, field.desc, data, 0, field.arraySize);
-	fields.PushBack(*value, document.GetAllocator());
-	//TODO: delete value?
+	//TODO: free maps?
+}
+
+void UMLRTCapsule::Serializer::registerField ( const UMLRTObject_field * field, void * data )
+{
+	fieldObjMap->insert(field->name, (void*)field);
+	fieldDataMap->insert(field->name, data);
 }
 
 const char * UMLRTCapsule::Serializer::write ( int currentState )
 {
-	document.AddMember("fields", fields, document.GetAllocator());
+    Document document;
+    document.SetObject();
 
-	if(currentState != -1)
-		document.AddMember("currentState", Value().SetInt(currentState), document.GetAllocator());
+    Value fields;
+	fields.SetArray();
+
+	fieldObjMap->lock();
+    UMLRTHashMap::Iterator iter = fieldObjMap->getIterator();
+
+    while (iter != iter.end())
+    {
+    		const UMLRTObject_field * field = (const UMLRTObject_field *)iter.getObject();
+    		void * data = fieldDataMap->getObject(field->name);
+
+    		Value name;
+    		name.SetString(StringRef(field->name));
+
+    		Value * value = field->desc->toJson(document, field->desc, data, 0, field->arraySize);
+    		value->AddMember("name", name, document.GetAllocator());
+    		fields.PushBack(*value, document.GetAllocator());
+
+        iter = iter.next();
+    }
+    fieldObjMap->unlock();
+
+    if(currentState != -1)
+    		document.AddMember("currentState", Value().SetInt(currentState), document.GetAllocator());
+    	document.AddMember("fields", fields, document.GetAllocator());
 
 	StringBuffer buffer;
 	Writer<StringBuffer> writer(buffer);
@@ -88,10 +117,27 @@ const char * UMLRTCapsule::Serializer::write ( int currentState )
 
 void UMLRTCapsule::Serializer::read ( const char * json, int * currentState )
 {
+	Document document;
 	document.Parse(json);
 
 	if(currentState != NULL)
 		*currentState = document["currentState"].GetInt();
+
+
+	const Value& fields = document["fields"];
+	for (Value::ConstValueIterator itr = fields.Begin(); itr != fields.End(); ++itr) {
+		const char * fieldName = (*itr)["name"].GetString();
+
+		const UMLRTObject_field * field = (const UMLRTObject_field *)fieldObjMap->getObject(fieldName);
+		if(field == NULL)
+			FATAL("UMLRTObject_field for field %s not found", fieldName);
+
+		void * data = fieldDataMap->getObject(field->name);
+		if(data == NULL)
+			FATAL("data region for field %s not found", fieldName);
+
+		field->desc->fromJson((Value&)(*itr)["value"], field->desc, data, 0);
+	}
 }
 
 

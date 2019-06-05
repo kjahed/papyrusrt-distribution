@@ -184,12 +184,12 @@ public class CapsuleGenerator extends SerializableClassGenerator {
 			MemberField attrField = new MemberField(
 					TypesUtil.createRTTypeAccess(cpp, attr, attr.getType()).getType(), attr.getName());
 
-			AbstractFunctionCall addFieldCall = UMLRTRuntime.UMLRTCapsule.Serializer.addField(
+			AbstractFunctionCall registerFieldCall = UMLRTRuntime.UMLRTCapsule.Serializer.registerField(
 					new ElementAccess(serializerVar),
-					new IndexExpr(new MemberAccess(cls, fieldsArray), new IntegralLiteral(i)),
+					new AddressOfExpr(new IndexExpr(new MemberAccess(cls, fieldsArray), new IntegralLiteral(i))),
 					new AddressOfExpr(new MemberAccess(cls, attrField)));
 
-			func.add(addFieldCall);
+			func.add(registerFieldCall);
 			i++;
 		}
 
@@ -223,12 +223,12 @@ public class CapsuleGenerator extends SerializableClassGenerator {
 			MemberField attrField = new MemberField(
 					TypesUtil.createRTTypeAccess(cpp, attr, attr.getType()).getType(), attr.getName());
 
-			AbstractFunctionCall addFieldCall = UMLRTRuntime.UMLRTCapsule.Serializer.addField(
+			AbstractFunctionCall registerFieldCall = UMLRTRuntime.UMLRTCapsule.Serializer.registerField(
 					new ElementAccess(serializerVar),
-					new IndexExpr(new MemberAccess(cls, fieldsArray), new IntegralLiteral(i)),
+					new AddressOfExpr(new IndexExpr(new MemberAccess(cls, fieldsArray), new IntegralLiteral(i))),
 					new AddressOfExpr(new MemberAccess(cls, attrField)));
 
-			func.add(addFieldCall);
+			func.add(registerFieldCall);
 			i++;
 		}
 

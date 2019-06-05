@@ -184,19 +184,19 @@ public final class UMLRTRuntime {
 				return call;
 			}
 
-			public static final MemberFunction addFieldFunction = new MemberFunction(PrimitiveType.VOID, "addField");
+			public static final MemberFunction registerFieldFunction = new MemberFunction(PrimitiveType.VOID, "registerField");
 			public static final MemberFunction writeFunction = new MemberFunction(PrimitiveType.CHAR.ptr().const_(), "write");
 			public static final MemberFunction readFunction = new MemberFunction(PrimitiveType.VOID, "read");
 
 			static {
-				addFieldFunction.add(new Parameter(UMLRTObject.getFieldType().const_().ref(), "field"));
-				addFieldFunction.add(new Parameter(PrimitiveType.VOID.ptr(), "data"));
+				registerFieldFunction.add(new Parameter(UMLRTObject.getFieldType().ptr(), "field"));
+				registerFieldFunction.add(new Parameter(PrimitiveType.VOID.ptr(), "data"));
 				readFunction.add(new Parameter(PrimitiveType.CHAR.ptr().const_(), "json"));
 				readFunction.add(new Parameter(PrimitiveType.INT.ptr(), "currentState"));
 			}
 
-			public static AbstractFunctionCall addField(Expression self, Expression field, Expression data) {
-				MemberFunctionCall call = new MemberFunctionCall(self, addFieldFunction);
+			public static AbstractFunctionCall registerField(Expression self, Expression field, Expression data) {
+				MemberFunctionCall call = new MemberFunctionCall(self, registerFieldFunction);
 				call.addArgument(field);
 				call.addArgument(data);
 				return call;

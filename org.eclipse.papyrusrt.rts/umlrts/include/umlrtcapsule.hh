@@ -67,15 +67,15 @@ protected:
 
     class Serializer {
             public:
-    				Serializer ( );
-    				void addField ( const UMLRTObject_field & field, void * data );
+				Serializer ( );
+				~Serializer ( );
+    				void registerField ( const UMLRTObject_field * field, void * data );
     				const char * write ( int currentState = -1 );
     				void read ( const char * json, int * currentState = NULL);
 
             private:
-                Document document;
-                Value fields;
-                int  * currentState;
+                UMLRTHashMap * fieldObjMap;
+                UMLRTHashMap * fieldDataMap;
         };
 
     // User can get the controller e.g. for incarnation or getting the last error.
